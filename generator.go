@@ -70,9 +70,6 @@ func (g *Generator) Generate(api *design.APIDefinition) (_ []string, err error) 
 	if g.host == "" {
 		g.host = api.Host
 	}
-	if g.host == "" {
-		return nil, fmt.Errorf("missing host value, set it with --host")
-	}
 
 	g.outDir = filepath.Join(g.outDir, "reduxa")
 	if err := os.RemoveAll(g.outDir); err != nil {
@@ -282,6 +279,7 @@ const beginActionCreatorsT = `// This module exports redux action creators for t
 // It uses the axios javascript library for making the actual HTTP requests.
 import * as actions from './{{.API.Name}}Actions';
 import axios from 'axios';
+//import {getScheme, getHost} from './../config'
 `
 
 const actionCreatorsT = `{{$params := params .Action}}
@@ -290,12 +288,12 @@ const actionCreatorsT = `{{$params := params .Action}}
 {{if .Action.Payload}}// data contains the action payload (request body)
 {{end}}{{if $params}}// {{join $params ", "}} {{if gt (len $params) 1}}are{{else}}is{{end}} used to build the request query string.
 {{end}}// This function returns a promise which dispatches an error if the HTTP response is a 4xx or 5xx.
-export const {{.Action.Name}}{{title .Action.Parent.BasePath}} = (path{{if .Action.Payload}}, data{{end}}{{if $params}}, {{join $params ", "}}{{end}}) => {
+export const {{.Action.Name}}{{title .Action.Parent.BasePath}} = ({{if .Action.Payload}}data{{end}}{{if $params}}{{if .Action.Payload}}, {{end}}{{join $params ", "}}{{end}}) => {
   return (dispatch) => {
     dispatch(actions.request{{title .Action.Name}}{{title .Action.Parent.BasePath}}());
     return axios({
       timeout: {{.Timeout}},
-      url: '{{.Scheme}}://{{.Host}}' + path,
+      url: '{{.Scheme}}://{{.Host}}' + '{{(index .Action.Routes 0).FullPath}}',
       method: '{{toLower (index .Action.Routes 0).Verb}}',
 {{if $params}}      params: {
 {{range $index, $param := $params}}{{if $index}},
